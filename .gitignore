@@ -1,0 +1,4 @@
+.idea
+docker/grafana/data/*
+docker/grafana/provisioning/*
+docker/prometheus/data/*

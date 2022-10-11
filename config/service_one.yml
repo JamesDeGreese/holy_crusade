@@ -1,0 +1,6 @@
+version: "0.1"
+
+kafka:
+  topic: "service_one"
+  partition: 0
+  address: "kafka:9092"
