@@ -1,7 +1,7 @@
 version: "0.1.0"
 
 kafka:
-  topic: "service_one"
+  topic: "entity"
   partition: 0
   address: "kafka:9092"
 
@@ -9,6 +9,6 @@ database:
   driver: "postgres"
   user: "user"
   password: "password"
-  host: "postgresql"
+  host: "localhost"
   port: "5432"
   dbName: "holycrusade"

@@ -12,8 +12,13 @@ import (
 
 type Application struct {
 	Config Config
-	MQ     *kafka.Conn
+	MQ     MQ
 	DB     *pgx.Conn
+}
+
+type MQ struct {
+	Reader *kafka.Reader
+	Writer *kafka.Writer
 }
 
 type Config struct {
@@ -58,21 +63,30 @@ func (a *Application) Init(cfgPath string) *Application {
 	return a
 }
 
-func (a *Application) WithKafka() (*Application, error) {
-	topic := a.Config.Kafka.Topic
-	partition := a.Config.Kafka.Partition
-	address := a.Config.Kafka.Address
-	conn, err := kafka.DialLeader(context.Background(), "tcp", address, topic, partition)
-	if err != nil {
-		log.Fatal("failed to dial leader:", err)
+func (a *Application) WithKafka() *Application {
+	var mq MQ
+
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{a.Config.Kafka.Address},
+		Topic:   a.Config.Kafka.Topic,
+		GroupID: "default_group",
+	})
+
+	w := &kafka.Writer{
+		Addr:     kafka.TCP(a.Config.Kafka.Address),
+		Topic:    a.Config.Kafka.Topic,
+		Balancer: &kafka.LeastBytes{},
 	}
 
-	a.MQ = conn
+	mq.Reader = r
+	mq.Writer = w
 
-	return a, err
+	a.MQ = mq
+
+	return a
 }
 
-func (a *Application) WithDB() (*Application, error) {
+func (a *Application) WithDB() *Application {
 	dbURL := fmt.Sprintf(
 		"%s://%s:%s@%s:%s/%s?sslmode=disable",
 		a.Config.Database.Driver,
@@ -97,5 +111,5 @@ func (a *Application) WithDB() (*Application, error) {
 		}
 	}(DBConn, context.Background())
 
-	return a, err
+	return a
 }
