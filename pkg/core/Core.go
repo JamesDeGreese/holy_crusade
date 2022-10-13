@@ -104,12 +104,5 @@ func (a *Application) WithDB() *Application {
 
 	a.DB = DBConn
 
-	defer func(DBConn *pgx.Conn, ctx context.Context) {
-		err := DBConn.Close(ctx)
-		if err != nil {
-			log.Fatal("failed to close database connection:", err)
-		}
-	}(DBConn, context.Background())
-
 	return a
 }

@@ -6,6 +6,8 @@ import (
 	"HolyCrusade/pkg/core"
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/jackc/pgx/v5"
 	"log"
 )
 
@@ -15,6 +17,7 @@ type Consumer struct {
 }
 
 type Handler struct {
+	App               core.Application
 	UserRepository    repository.UserRepository
 	CityRepository    repository.CityRepository
 	BalanceRepository repository.BalanceRepository
@@ -28,12 +31,19 @@ func (c *Consumer) ListenMQ() {
 		}
 
 		if h, ok := c.Handlers[string(msg.Key)]; ok {
-			go h(msg.Value)
+			go func(hand func([]byte), value []byte) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Println("Failed to handle message from MQ")
+						return
+					}
+				}()
+				hand(value)
+			}(h, msg.Value)
+
 		}
 	}
 }
-
-// TODO: Тесты для этого хендлера
 
 func (h *Handler) NewUser(value []byte) {
 	var nu core.NewUser
@@ -42,6 +52,27 @@ func (h *Handler) NewUser(value []byte) {
 		log.Println("Can't unmarshal the byte array")
 		return
 	}
+
+	tx, err := h.App.DB.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		log.Println("Failed to start transaction")
+		return
+	}
+	defer func() {
+		if err != nil {
+			err := tx.Rollback(context.Background())
+			if err != nil {
+				log.Println("Failed to rollback transaction")
+				return
+			}
+		} else {
+			err := tx.Commit(context.Background())
+			if err != nil {
+				log.Println("Failed to commit transaction")
+				return
+			}
+		}
+	}()
 
 	var u models.User
 	u.Token = nu.UserToken
@@ -53,7 +84,7 @@ func (h *Handler) NewUser(value []byte) {
 
 	c := models.City{
 		UserID: uID,
-		Name:   "",
+		Name:   fmt.Sprintf("City of User %d", uID),
 		Rating: 0,
 	}
 	cID, err := h.CityRepository.Insert(c)
@@ -75,7 +106,5 @@ func (h *Handler) NewUser(value []byte) {
 
 	if err != nil {
 		log.Println(err)
-		return
 	}
-
 }

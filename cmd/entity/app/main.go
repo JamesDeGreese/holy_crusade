@@ -11,6 +11,7 @@ func main() {
 	a.Init("config/entity_service.yml").WithDB().WithKafka()
 
 	h := entity.Handler{
+		App:               a,
 		UserRepository:    repository.UserRepository{DB: a.DB},
 		CityRepository:    repository.CityRepository{DB: a.DB},
 		BalanceRepository: repository.BalanceRepository{DB: a.DB},

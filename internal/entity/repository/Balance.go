@@ -15,7 +15,7 @@ func (r *BalanceRepository) GetByCityID(cityID int) (entity.Balance, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"SELECT (id, city_id, gold, population, workers, solders, heroes) FROM balance WHERE city_id = $1",
+		"SELECT id, city_id, gold, population, workers, solders, heroes FROM balance WHERE city_id = $1",
 		cityID,
 	).Scan(&b.ID, &b.CityID, &b.Gold, &b.Population, &b.Workers, &b.Solders, &b.Heroes)
 
@@ -27,7 +27,7 @@ func (r *BalanceRepository) Insert(b entity.Balance) (int, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"INSERT INTO balance (city_id, gold, population, workers, solders, heroes) values ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO balance (city_id, gold, population, workers, solders, heroes) values ($1, $2, $3, $4, $5, $6) RETURNING id",
 		b.CityID,
 		b.Gold,
 		b.Population,

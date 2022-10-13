@@ -15,7 +15,7 @@ func (r *UserRepository) GetByID(ID int) (entity.User, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"SELECT (id, token) FROM users WHERE user_id = $1",
+		"SELECT id, token FROM users WHERE user_id = $1",
 		ID,
 	).Scan(&u.ID, &u.Token)
 
@@ -27,7 +27,7 @@ func (r *UserRepository) GetByToken(token string) (entity.User, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"SELECT (id, token) FROM users WHERE token = $1",
+		"SELECT id, token FROM users WHERE token = $1",
 		token,
 	).Scan(&u.ID, &u.Token)
 
@@ -39,8 +39,7 @@ func (r *UserRepository) Insert(u entity.User) (int, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"INSERT INTO users (id, token) values ($1, $2)",
-		u.ID,
+		"INSERT INTO users (token) values ($1) RETURNING id",
 		u.Token,
 	).Scan(&id)
 

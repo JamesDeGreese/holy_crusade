@@ -3,7 +3,7 @@ version: "0.1.0"
 kafka:
   topic: "entity"
   partition: 0
-  address: "kafka:9092"
+  address: "localhost:9092"
 
 database:
   driver: "postgres"

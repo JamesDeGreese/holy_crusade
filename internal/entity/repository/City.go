@@ -15,7 +15,7 @@ func (r *CityRepository) GetByID(ID int) (entity.City, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"SELECT (id, user_id, name, rating) FROM cities WHERE user_id = $1",
+		"SELECT id, user_id, name, rating FROM cities WHERE user_id = $1",
 		ID,
 	).Scan(&c.ID, &c.UserID, &c.Name, &c.Rating)
 
@@ -27,7 +27,7 @@ func (r *CityRepository) GetByUserID(userID int) (entity.City, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"SELECT (id, user_id, name, rating) FROM cities WHERE user_id = $1",
+		"SELECT id, user_id, name, rating FROM cities WHERE user_id = $1",
 		userID,
 	).Scan(&c.ID, &c.UserID, &c.Name, &c.Rating)
 
@@ -39,7 +39,7 @@ func (r *CityRepository) Insert(c entity.City) (int, error) {
 
 	err := r.DB.QueryRow(
 		context.Background(),
-		"INSERT INTO cities (user_id, name, rating) values ($1, $2, $3)",
+		"INSERT INTO cities (user_id, name, rating) values ($1, $2, $3) RETURNING id",
 		c.UserID,
 		c.Name,
 		c.Rating,
