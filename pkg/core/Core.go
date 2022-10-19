@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+var app *Application = nil
+
 type Application struct {
 	Config Config
 	MQ     MQ
@@ -42,6 +44,13 @@ type Database struct {
 	Database string `yaml:"dbName"`
 }
 
+func GetApp() *Application {
+	if app == nil {
+		app = &Application{}
+	}
+	return app
+}
+
 func (c *Config) ParseFile(path string) error {
 	contents, err := os.ReadFile(path)
 	if err != nil {
@@ -50,7 +59,7 @@ func (c *Config) ParseFile(path string) error {
 	return yaml.Unmarshal(contents, c)
 }
 
-func (a *Application) Init(cfgPath string) *Application {
+func InitApp(cfgPath string) *Application {
 	var cfg Config
 
 	err := cfg.ParseFile(cfgPath)
@@ -58,6 +67,7 @@ func (a *Application) Init(cfgPath string) *Application {
 		panic(err)
 	}
 
+	a := GetApp()
 	a.Config = cfg
 
 	return a

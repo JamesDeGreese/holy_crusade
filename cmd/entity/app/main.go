@@ -7,22 +7,26 @@ import (
 )
 
 func main() {
-	var a core.Application
-	a.Init("config/entity_service.yml").WithDB().WithKafka()
+	a := core.InitApp("config/entity_service.yml").WithDB().WithKafka()
 
-	h := entity.Handler{
-		App:               a,
-		UserRepository:    repository.UserRepository{DB: a.DB},
-		CityRepository:    repository.CityRepository{DB: a.DB},
-		BalanceRepository: repository.BalanceRepository{DB: a.DB},
+	ur := repository.UserRepository{}.Init(a.DB)
+	cr := repository.CityRepository{}.Init(a.DB)
+	br := repository.BalanceRepository{}.Init(a.DB)
+
+	var h = entity.Handler{
+		UserRepository:    ur,
+		CityRepository:    cr,
+		BalanceRepository: br,
 	}
 
 	c := entity.Consumer{
-		App: a,
-		Handlers: map[string]func([]byte){
+		Handlers: map[string]func([]byte) error{
 			"new_user": h.NewUser,
 		},
 	}
 
-	c.ListenMQ()
+	err := c.ListenMQ()
+	if err != nil {
+		panic(err)
+	}
 }

@@ -12,51 +12,49 @@ import (
 )
 
 type Consumer struct {
-	App      core.Application
-	Handlers map[string]func([]byte)
+	Handlers map[string]func([]byte) error
 }
 
 type Handler struct {
-	App               core.Application
 	UserRepository    repository.UserRepository
 	CityRepository    repository.CityRepository
 	BalanceRepository repository.BalanceRepository
 }
 
-func (c *Consumer) ListenMQ() {
+func (c *Consumer) ListenMQ() error {
+	app := core.GetApp()
+
 	for {
-		msg, err := c.App.MQ.Reader.ReadMessage(context.Background())
+		msg, err := app.MQ.Reader.ReadMessage(context.Background())
 		if err != nil {
-			panic("could not read message " + err.Error())
+			return err
 		}
 
 		if h, ok := c.Handlers[string(msg.Key)]; ok {
-			go func(hand func([]byte), value []byte) {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Println("Failed to handle message from MQ")
-						return
-					}
-				}()
-				hand(value)
+			go func(hand func([]byte) error, value []byte) {
+				err := hand(value)
+				if err != nil {
+					log.Println("Failed to consume job")
+				}
 			}(h, msg.Value)
 
 		}
 	}
 }
 
-func (h *Handler) NewUser(value []byte) {
+func (h *Handler) NewUser(value []byte) error {
+	app := core.GetApp()
 	var nu core.NewUser
 	err := json.Unmarshal(value, &nu)
 	if err != nil {
 		log.Println("Can't unmarshal the byte array")
-		return
+		return err
 	}
 
-	tx, err := h.App.DB.BeginTx(context.Background(), pgx.TxOptions{})
+	tx, err := app.DB.BeginTx(context.Background(), pgx.TxOptions{})
 	if err != nil {
 		log.Println("Failed to start transaction")
-		return
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -76,10 +74,10 @@ func (h *Handler) NewUser(value []byte) {
 
 	var u models.User
 	u.Token = nu.UserToken
-	uID, err := h.UserRepository.Insert(u)
+	uID, err := h.UserRepository.Insert(context.Background(), u)
 	if err != nil {
 		log.Println(err)
-		return
+		return err
 	}
 
 	c := models.City{
@@ -87,24 +85,20 @@ func (h *Handler) NewUser(value []byte) {
 		Name:   fmt.Sprintf("City of User %d", uID),
 		Rating: 0,
 	}
-	cID, err := h.CityRepository.Insert(c)
+	cID, err := h.CityRepository.Insert(context.Background(), c)
 	if err != nil {
 		log.Println(err)
-		return
+		return err
 	}
 
-	b := models.Balance{
-		CityID:     cID,
-		Gold:       0,
-		Population: 0,
-		Workers:    0,
-		Solders:    0,
-		Heroes:     0,
-	}
+	b := models.Balance{CityID: cID}
 
-	_, err = h.BalanceRepository.Insert(b)
+	_, err = h.BalanceRepository.Insert(context.Background(), b)
 
 	if err != nil {
 		log.Println(err)
+		return err
 	}
+
+	return nil
 }

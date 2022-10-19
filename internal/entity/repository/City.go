@@ -7,14 +7,19 @@ import (
 )
 
 type CityRepository struct {
-	DB *pgx.Conn
+	db *pgx.Conn
 }
 
-func (r *CityRepository) GetByID(ID int) (entity.City, error) {
+func (cr CityRepository) Init(db *pgx.Conn) CityRepository {
+	cr.db = db
+	return cr
+}
+
+func (cr *CityRepository) GetByID(ctx context.Context, ID int) (entity.City, error) {
 	var c entity.City
 
-	err := r.DB.QueryRow(
-		context.Background(),
+	err := cr.db.QueryRow(
+		ctx,
 		"SELECT id, user_id, name, rating FROM cities WHERE user_id = $1",
 		ID,
 	).Scan(&c.ID, &c.UserID, &c.Name, &c.Rating)
@@ -22,11 +27,11 @@ func (r *CityRepository) GetByID(ID int) (entity.City, error) {
 	return c, err
 }
 
-func (r *CityRepository) GetByUserID(userID int) (entity.City, error) {
+func (cr *CityRepository) GetByUserID(ctx context.Context, userID int) (entity.City, error) {
 	var c entity.City
 
-	err := r.DB.QueryRow(
-		context.Background(),
+	err := cr.db.QueryRow(
+		ctx,
 		"SELECT id, user_id, name, rating FROM cities WHERE user_id = $1",
 		userID,
 	).Scan(&c.ID, &c.UserID, &c.Name, &c.Rating)
@@ -34,11 +39,11 @@ func (r *CityRepository) GetByUserID(userID int) (entity.City, error) {
 	return c, err
 }
 
-func (r *CityRepository) Insert(c entity.City) (int, error) {
+func (cr *CityRepository) Insert(ctx context.Context, c entity.City) (int, error) {
 	var id int
 
-	err := r.DB.QueryRow(
-		context.Background(),
+	err := cr.db.QueryRow(
+		ctx,
 		"INSERT INTO cities (user_id, name, rating) values ($1, $2, $3) RETURNING id",
 		c.UserID,
 		c.Name,
@@ -48,8 +53,8 @@ func (r *CityRepository) Insert(c entity.City) (int, error) {
 	return id, err
 }
 
-func (r *CityRepository) Delete(ID int) error {
-	_, err := r.DB.Exec(context.Background(),
+func (cr *CityRepository) Delete(ctx context.Context, ID int) error {
+	_, err := cr.db.Exec(ctx,
 		"DELETE FROM cities WHERE id = $1", ID)
 
 	return err

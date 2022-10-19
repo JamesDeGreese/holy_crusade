@@ -7,14 +7,20 @@ import (
 )
 
 type UserRepository struct {
-	DB *pgx.Conn
+	db *pgx.Conn
 }
 
-func (r *UserRepository) GetByID(ID int) (entity.User, error) {
+func (ur UserRepository) Init(db *pgx.Conn) UserRepository {
+	ur.db = db
+
+	return ur
+}
+
+func (ur *UserRepository) GetByID(ctx context.Context, ID int) (entity.User, error) {
 	var u entity.User
 
-	err := r.DB.QueryRow(
-		context.Background(),
+	err := ur.db.QueryRow(
+		ctx,
 		"SELECT id, token FROM users WHERE user_id = $1",
 		ID,
 	).Scan(&u.ID, &u.Token)
@@ -22,11 +28,11 @@ func (r *UserRepository) GetByID(ID int) (entity.User, error) {
 	return u, err
 }
 
-func (r *UserRepository) GetByToken(token string) (entity.User, error) {
+func (ur *UserRepository) GetByToken(ctx context.Context, token string) (entity.User, error) {
 	var u entity.User
 
-	err := r.DB.QueryRow(
-		context.Background(),
+	err := ur.db.QueryRow(
+		ctx,
 		"SELECT id, token FROM users WHERE token = $1",
 		token,
 	).Scan(&u.ID, &u.Token)
@@ -34,11 +40,11 @@ func (r *UserRepository) GetByToken(token string) (entity.User, error) {
 	return u, err
 }
 
-func (r *UserRepository) Insert(u entity.User) (int, error) {
+func (ur *UserRepository) Insert(ctx context.Context, u entity.User) (int, error) {
 	var id int
 
-	err := r.DB.QueryRow(
-		context.Background(),
+	err := ur.db.QueryRow(
+		ctx,
 		"INSERT INTO users (token) values ($1) RETURNING id",
 		u.Token,
 	).Scan(&id)
@@ -46,8 +52,8 @@ func (r *UserRepository) Insert(u entity.User) (int, error) {
 	return id, err
 }
 
-func (r *UserRepository) Delete(ID int) error {
-	_, err := r.DB.Exec(context.Background(),
+func (ur *UserRepository) Delete(ctx context.Context, ID int) error {
+	_, err := ur.db.Exec(ctx,
 		"DELETE FROM users WHERE id = $1", ID)
 
 	return err

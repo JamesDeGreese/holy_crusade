@@ -3,19 +3,22 @@ package entity
 import (
 	"HolyCrusade/internal/entity/repository"
 	"HolyCrusade/pkg/core"
+	"context"
 	"encoding/json"
 	"testing"
 )
 
 func initHandler() Handler {
-	var a core.Application
-	a.Init("../../config/entity_service.yml").WithDB().WithKafka()
+	a := core.InitApp("../../config/entity_service.yml").WithDB().WithKafka()
 
-	h := Handler{
-		App:               a,
-		UserRepository:    repository.UserRepository{DB: a.DB},
-		CityRepository:    repository.CityRepository{DB: a.DB},
-		BalanceRepository: repository.BalanceRepository{DB: a.DB},
+	ur := repository.UserRepository{}.Init(a.DB)
+	cr := repository.CityRepository{}.Init(a.DB)
+	br := repository.BalanceRepository{}.Init(a.DB)
+
+	var h = Handler{
+		UserRepository:    ur,
+		CityRepository:    cr,
+		BalanceRepository: br,
 	}
 
 	return h
@@ -31,23 +34,32 @@ func TestNewUserHandler(t *testing.T) {
 		t.Fail()
 	}
 
-	h.NewUser(value)
+	err = h.NewUser(value)
+	if err != nil {
+		t.Fail()
+	}
 
-	u, err := h.UserRepository.GetByToken("TOKEN")
+	u, err := h.UserRepository.GetByToken(context.Background(), "TOKEN")
 
 	if u.ID == 0 || err != nil {
 		t.Fail()
 	}
 
-	c, err := h.CityRepository.GetByUserID(u.ID)
+	c, err := h.CityRepository.GetByUserID(context.Background(), u.ID)
 
 	if c.ID == 0 || err != nil {
 		t.Fail()
 	}
 
-	b, err := h.BalanceRepository.GetByCityID(c.ID)
+	b, err := h.BalanceRepository.GetByCityID(context.Background(), c.ID)
 
 	if b.ID == 0 || err != nil {
+		t.Fail()
+	}
+
+	err = h.UserRepository.Delete(context.Background(), u.ID)
+
+	if err != nil {
 		t.Fail()
 	}
 }
