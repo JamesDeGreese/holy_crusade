@@ -2,18 +2,20 @@ version: "3.5"
 
 services:
   # APP
-  app:
+  entity_service:
     build:
       context: .
-      dockerfile: docker/service_one/Dockerfile
-    working_dir: /app
+      dockerfile: docker/entity/Dockerfile
+    command:
+      - ./entity_service_cli
     depends_on:
+      - postgresql
       - kafka
 
   postgresql:
     image: postgres
-    expose:
-      - 5432
+    ports:
+      - "5432:5432"
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
@@ -27,8 +29,8 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.0.1
-    expose:
-      - 9092
+    ports:
+      - "9092:9092"
     depends_on:
       - zookeeper
     environment:
