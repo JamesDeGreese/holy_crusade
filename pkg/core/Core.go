@@ -2,26 +2,53 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/kafka-go"
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
 )
 
+var app *Application = nil
+
 type Application struct {
 	Config Config
-	MQ     *kafka.Conn
+	MQ     MQ
+	DB     *pgx.Conn
+}
+
+type MQ struct {
+	Reader *kafka.Reader
+	Writer *kafka.Writer
 }
 
 type Config struct {
-	Version string   `yaml:"version"`
-	Kafka   KafkaCfg `yaml:"kafka"`
+	Version  string   `yaml:"version"`
+	Kafka    KafkaCfg `yaml:"kafka"`
+	Database Database `yaml:"database"`
 }
 
 type KafkaCfg struct {
 	Topic     string `yaml:"topic"`
 	Partition int    `yaml:"partition"`
 	Address   string `yaml:"address"`
+}
+
+type Database struct {
+	Driver   string `yaml:"driver"`
+	UserName string `yaml:"user"`
+	Password string `yaml:"password"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	Database string `yaml:"dbName"`
+}
+
+func GetApp() *Application {
+	if app == nil {
+		app = &Application{}
+	}
+	return app
 }
 
 func (c *Config) ParseFile(path string) error {
@@ -32,7 +59,7 @@ func (c *Config) ParseFile(path string) error {
 	return yaml.Unmarshal(contents, c)
 }
 
-func (a *Application) Init(cfgPath string) *Application {
+func InitApp(cfgPath string) *Application {
 	var cfg Config
 
 	err := cfg.ParseFile(cfgPath)
@@ -40,21 +67,52 @@ func (a *Application) Init(cfgPath string) *Application {
 		panic(err)
 	}
 
+	a := GetApp()
 	a.Config = cfg
 
 	return a
 }
 
 func (a *Application) WithKafka() *Application {
-	topic := a.Config.Kafka.Topic
-	partition := a.Config.Kafka.Partition
-	address := a.Config.Kafka.Address
-	conn, err := kafka.DialLeader(context.Background(), "tcp", address, topic, partition)
-	if err != nil {
-		log.Fatal("failed to dial leader:", err)
+	var mq MQ
+
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{a.Config.Kafka.Address},
+		Topic:   a.Config.Kafka.Topic,
+		GroupID: "default_group",
+	})
+
+	w := &kafka.Writer{
+		Addr:     kafka.TCP(a.Config.Kafka.Address),
+		Topic:    a.Config.Kafka.Topic,
+		Balancer: &kafka.LeastBytes{},
 	}
 
-	a.MQ = conn
+	mq.Reader = r
+	mq.Writer = w
+
+	a.MQ = mq
+
+	return a
+}
+
+func (a *Application) WithDB() *Application {
+	dbURL := fmt.Sprintf(
+		"%s://%s:%s@%s:%s/%s?sslmode=disable",
+		a.Config.Database.Driver,
+		a.Config.Database.UserName,
+		a.Config.Database.Password,
+		a.Config.Database.Host,
+		a.Config.Database.Port,
+		a.Config.Database.Database,
+	)
+
+	DBConn, err := pgx.Connect(context.Background(), dbURL)
+	if err != nil {
+		log.Fatal("failed to connect with database:", err)
+	}
+
+	a.DB = DBConn
 
 	return a
 }
