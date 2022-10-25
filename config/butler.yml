@@ -1,0 +1,9 @@
+version: "0.1"
+
+telegram_bot:
+  token: "5468751130:AAHh0lMKqG-_GLqJHjQvz567BfAbVMd1yaY"
+  debug: true
+kafka:
+  topic: "service_one"
+  partition: 0
+  address: "kafka:9092"
