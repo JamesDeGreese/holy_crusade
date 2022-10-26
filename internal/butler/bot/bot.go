@@ -7,23 +7,18 @@ import (
 )
 
 type GameBot struct {
-	Bot *tgbotapi.BotAPI
+	bot *tgbotapi.BotAPI
 }
 
-func (b *GameBot) Init(token string, debug bool) *GameBot {
-	bot, err := tgbotapi.NewBotAPI(token)
-	if err != nil {
-		log.Fatal("failed to run tgbot:", err)
-	}
+func (gb *GameBot) SetBot(bot *tgbotapi.BotAPI) {
+	gb.bot = bot
+}
 
-	bot.Debug = debug
-
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+func (gb *GameBot) Start() {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-
-	updates := bot.GetUpdatesChan(u)
+	updates := gb.bot.GetUpdatesChan(u)
 
 	for update := range updates {
 		if update.Message == nil { // ignore non-Message updates
@@ -39,11 +34,8 @@ func (b *GameBot) Init(token string, debug bool) *GameBot {
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 		}
 
-		if _, err := bot.Send(msg); err != nil {
+		if _, err := gb.bot.Send(msg); err != nil {
 			log.Panic(err)
 		}
 	}
-
-	b.Bot = bot
-	return b
 }

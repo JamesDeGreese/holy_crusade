@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/kafka-go"
 	"gopkg.in/yaml.v3"
@@ -16,6 +17,7 @@ type Application struct {
 	Config Config
 	MQ     MQ
 	DB     *pgx.Conn
+	TgBot  *tgbotapi.BotAPI
 }
 
 type MQ struct {
@@ -27,6 +29,7 @@ type Config struct {
 	Version  string   `yaml:"version"`
 	Kafka    KafkaCfg `yaml:"kafka"`
 	Database Database `yaml:"database"`
+	TgBot    TgCfg    `yaml:"telegram_bot"`
 }
 
 type KafkaCfg struct {
@@ -42,6 +45,11 @@ type Database struct {
 	Host     string `yaml:"host"`
 	Port     string `yaml:"port"`
 	Database string `yaml:"dbName"`
+}
+
+type TgCfg struct {
+	Token string `yaml:"token"`
+	Debug bool   `yaml:"debug"`
 }
 
 func GetApp() *Application {
@@ -113,6 +121,21 @@ func (a *Application) WithDB() *Application {
 	}
 
 	a.DB = DBConn
+
+	return a
+}
+
+func (a *Application) WithTelegramBot() *Application {
+	bot, err := tgbotapi.NewBotAPI(a.Config.TgBot.Token)
+	if err != nil {
+		log.Fatal("failed to run tgbot:", err)
+	}
+
+	bot.Debug = a.Config.TgBot.Debug
+
+	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	a.TgBot = bot
 
 	return a
 }
