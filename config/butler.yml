@@ -3,7 +3,8 @@ version: "0.1"
 telegram_bot:
   token: "5468751130:AAHh0lMKqG-_GLqJHjQvz567BfAbVMd1yaY"
   debug: true
+
 kafka:
-  topic: "service_one"
+  topic: "holycrusade"
   partition: 0
-  address: "kafka:9092"
+  address: "localhost:9092"

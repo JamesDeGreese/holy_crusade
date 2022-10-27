@@ -27,7 +27,7 @@ func initHandler() Handler {
 func TestNewUserHandler(t *testing.T) {
 	h := initHandler()
 
-	nu := core.NewUser{UserToken: "TOKEN"}
+	nu := core.NewUser{ChatID: 1234567890}
 
 	value, err := json.Marshal(nu)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestNewUserHandler(t *testing.T) {
 		t.Fail()
 	}
 
-	u, err := h.UserRepository.GetByToken(context.Background(), "TOKEN")
+	u, err := h.UserRepository.GetByChatId(context.Background(), 1234567890)
 
 	if u.ID == 0 || err != nil {
 		t.Fail()

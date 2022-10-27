@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	var a core.Application
-	app := a.Init("config/entity_service.yml").WithDB()
+	app := core.InitApp("config/entity_service.yml").WithDB()
 
 	m, err := migrate.New(
 		"file://internal/entity/migrations",

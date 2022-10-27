@@ -1,5 +1,10 @@
 package core
 
+type MQEvent struct {
+	Type    string
+	Payload interface{}
+}
+
 type NewUser struct {
-	UserToken string
+	ChatID int64
 }

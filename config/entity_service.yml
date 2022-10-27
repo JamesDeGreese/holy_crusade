@@ -1,7 +1,7 @@
 version: "0.1.0"
 
 kafka:
-  topic: "entity"
+  topic: "holycrusade"
   partition: 0
   address: "localhost:9092"
 

@@ -1,6 +1,6 @@
 package models
 
 type User struct {
-	ID    int
-	Token string
+	ID     int
+	ChatID int64
 }

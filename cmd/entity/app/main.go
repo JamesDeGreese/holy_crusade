@@ -4,6 +4,7 @@ import (
 	"HolyCrusade/internal/entity"
 	"HolyCrusade/internal/entity/repository"
 	"HolyCrusade/pkg/core"
+	"log"
 )
 
 func main() {
@@ -20,13 +21,13 @@ func main() {
 	}
 
 	c := entity.Consumer{
-		Handlers: map[string]func([]byte) error{
+		Handlers: map[string]func(interface{}) error{
 			"new_user": h.NewUser,
 		},
 	}
 
 	err := c.ListenMQ()
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 }

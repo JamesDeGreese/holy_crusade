@@ -21,21 +21,21 @@ func (ur *UserRepository) GetByID(ctx context.Context, ID int) (entity.User, err
 
 	err := ur.db.QueryRow(
 		ctx,
-		"SELECT id, token FROM users WHERE user_id = $1",
+		"SELECT id, chat_id FROM users WHERE user_id = $1",
 		ID,
-	).Scan(&u.ID, &u.Token)
+	).Scan(&u.ID, &u.ChatID)
 
 	return u, err
 }
 
-func (ur *UserRepository) GetByToken(ctx context.Context, token string) (entity.User, error) {
+func (ur *UserRepository) GetByChatId(ctx context.Context, chatID int64) (entity.User, error) {
 	var u entity.User
 
 	err := ur.db.QueryRow(
 		ctx,
-		"SELECT id, token FROM users WHERE token = $1",
-		token,
-	).Scan(&u.ID, &u.Token)
+		"SELECT id, chat_id FROM users WHERE chat_id = $1",
+		chatID,
+	).Scan(&u.ID, &u.ChatID)
 
 	return u, err
 }
@@ -45,8 +45,8 @@ func (ur *UserRepository) Insert(ctx context.Context, u entity.User) (int, error
 
 	err := ur.db.QueryRow(
 		ctx,
-		"INSERT INTO users (token) values ($1) RETURNING id",
-		u.Token,
+		"INSERT INTO users (chat_id) values ($1) RETURNING id",
+		u.ChatID,
 	).Scan(&id)
 
 	return id, err

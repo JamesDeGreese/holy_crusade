@@ -8,11 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/mitchellh/mapstructure"
 	"log"
 )
 
 type Consumer struct {
-	Handlers map[string]func([]byte) error
+	Handlers map[string]func(interface{}) error
 }
 
 type Handler struct {
@@ -30,24 +31,30 @@ func (c *Consumer) ListenMQ() error {
 			return err
 		}
 
-		if h, ok := c.Handlers[string(msg.Key)]; ok {
-			go func(hand func([]byte) error, value []byte) {
+		var mqe core.MQEvent
+		err = json.Unmarshal(msg.Value, &mqe)
+		if err != nil {
+			log.Println("Can't unmarshal the byte array")
+			return err
+		}
+
+		if h, ok := c.Handlers[mqe.Type]; ok {
+			go func(hand func(interface{}) error, value interface{}) {
 				err := hand(value)
 				if err != nil {
 					log.Println("Failed to consume job")
 				}
-			}(h, msg.Value)
-
+			}(h, mqe.Payload)
 		}
 	}
 }
 
-func (h *Handler) NewUser(value []byte) error {
+func (h *Handler) NewUser(value interface{}) error {
 	app := core.GetApp()
 	var nu core.NewUser
-	err := json.Unmarshal(value, &nu)
+	err := mapstructure.Decode(value, &nu)
 	if err != nil {
-		log.Println("Can't unmarshal the byte array")
+		log.Println("Can't decode value into right struct")
 		return err
 	}
 
@@ -73,7 +80,7 @@ func (h *Handler) NewUser(value []byte) error {
 	}()
 
 	var u models.User
-	u.Token = nu.UserToken
+	u.ChatID = nu.ChatID
 	uID, err := h.UserRepository.Insert(context.Background(), u)
 	if err != nil {
 		log.Println(err)
