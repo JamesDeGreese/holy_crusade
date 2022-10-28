@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	a := core.InitApp("config/butler.yml").WithTelegramBot().WithKafka()
+	a := core.InitApp("config/butler.yml").WithTelegramBot()
 
 	b := bot.GameBot{}
 	b.SetBot(a.TgBot)

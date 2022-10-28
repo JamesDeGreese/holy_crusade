@@ -4,6 +4,7 @@ import (
 	"HolyCrusade/internal/entity"
 	"HolyCrusade/internal/entity/repository"
 	"HolyCrusade/pkg/core"
+	"fmt"
 	"log"
 )
 
@@ -20,14 +21,27 @@ func main() {
 		BalanceRepository: br,
 	}
 
-	c := entity.Consumer{
-		Handlers: map[string]func(interface{}) error{
-			"new_user": h.NewUser,
-		},
-	}
+	done := make(chan bool)
 
-	err := c.ListenMQ()
-	if err != nil {
-		log.Panic(err)
+	go func(ch chan bool) {
+		err := entity.ListenMQ("new_user", h.NewUser)
+		if err != nil {
+			ch <- true
+			log.Panic(err)
+		}
+	}(done)
+
+	go func(ch chan bool) {
+		err := entity.ListenMQ("city_info_req", h.CityInfo)
+		if err != nil {
+			ch <- true
+			log.Panic(err)
+		}
+	}(done)
+
+	select {
+	case <-done:
+		fmt.Println("One of readers down, done")
+		return
 	}
 }
