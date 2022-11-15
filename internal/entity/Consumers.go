@@ -149,3 +149,93 @@ func (h *Handler) CityInfo(value interface{}) error {
 
 	return nil
 }
+
+func (h *Handler) AddWorker(value interface{}) error {
+	var aw core.AddWorkerReq
+	err := mapstructure.Decode(value, &aw)
+	if err != nil {
+		log.Println("Can't decode value into right struct")
+		return err
+	}
+
+	user, err := h.UserRepository.GetByChatId(context.Background(), aw.ChatID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get user")
+		return err
+	}
+
+	city, err := h.CityRepository.GetByUserID(context.Background(), user.ID)
+	if err != nil || city.ID == 0 {
+		log.Println("Can't get city")
+		return err
+	}
+
+	balance, err := h.BalanceRepository.GetByCityID(context.Background(), city.ID)
+	if err != nil || balance.ID == 0 {
+		log.Println("Can't get balance")
+		return err
+	}
+
+	if balance.Population <= 0 {
+		err = errors.New("there are not enough free people in the city")
+		log.Println(err)
+		return err
+	}
+
+	balance.Workers += aw.Count
+	balance.Population -= aw.Count
+
+	err = h.BalanceRepository.Update(context.Background(), balance)
+	if err != nil {
+		log.Println("Can't update balance")
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) AddSolder(value interface{}) error {
+	var as core.AddWorkerReq
+	err := mapstructure.Decode(value, &as)
+	if err != nil {
+		log.Println("Can't decode value into right struct")
+		return err
+	}
+
+	user, err := h.UserRepository.GetByChatId(context.Background(), as.ChatID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get user")
+		return err
+	}
+
+	city, err := h.CityRepository.GetByUserID(context.Background(), user.ID)
+	if err != nil || city.ID == 0 {
+		log.Println("Can't get city")
+		return err
+	}
+
+	balance, err := h.BalanceRepository.GetByCityID(context.Background(), city.ID)
+	if err != nil || balance.ID == 0 {
+		log.Println("Can't get balance")
+		return err
+	}
+
+	if balance.Population <= 0 {
+		err = errors.New("there are not enough free people in the city")
+		log.Println(err)
+		return err
+	}
+
+	balance.Solders += as.Count
+	balance.Population -= as.Count
+
+	err = h.BalanceRepository.Update(context.Background(), balance)
+	if err != nil {
+		log.Println("Can't update balance")
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}

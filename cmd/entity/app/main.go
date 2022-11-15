@@ -39,6 +39,22 @@ func main() {
 		}
 	}(done)
 
+	go func(ch chan bool) {
+		err := entity.ListenMQ("add_worker_req", h.AddWorker)
+		if err != nil {
+			ch <- true
+			log.Panic(err)
+		}
+	}(done)
+
+	go func(ch chan bool) {
+		err := entity.ListenMQ("add_solder_req", h.AddSolder)
+		if err != nil {
+			ch <- true
+			log.Panic(err)
+		}
+	}(done)
+
 	select {
 	case <-done:
 		fmt.Println("One of readers down, done")

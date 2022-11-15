@@ -23,9 +23,6 @@ func (gb *GameBot) Start() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := gb.bot.GetUpdatesChan(u)
-	uuidv4, _ := uuid.NewV4()
-
-	app := core.GetApp()
 
 	go func() {
 		err := func() error {
@@ -69,44 +66,59 @@ func (gb *GameBot) Start() {
 			continue
 		}
 
-		switch update.Message.Text {
-		case "/start":
-			writer := kafka.Writer{
-				Addr:     kafka.TCP(app.Config.Kafka.Address),
-				Topic:    "new_user",
-				Balancer: &kafka.LeastBytes{},
-			}
+		if !update.Message.IsCommand() { // ignore any non-command Messages
+			continue
+		}
+
+		switch update.Message.Command() {
+		case "start":
 			v, _ := json.Marshal(core.NewUser{ChatID: update.Message.Chat.ID})
-			err := writer.WriteMessages(context.Background(),
-				kafka.Message{
-					Key:   uuidv4.Bytes(),
-					Value: v,
-				},
-			)
-			if err != nil {
-				log.Panic(err)
-			}
-		case "/city":
-			writer := kafka.Writer{
-				Addr:     kafka.TCP(app.Config.Kafka.Address),
-				Topic:    "city_info_req",
-				Balancer: &kafka.LeastBytes{},
-			}
+			writeToMQ(context.Background(), "new_user", v)
+		case "city":
 			v, _ := json.Marshal(core.CityInfoReq{ChatID: update.Message.Chat.ID})
-			err := writer.WriteMessages(context.Background(),
-				kafka.Message{
-					Key:   uuidv4.Bytes(),
-					Value: v,
+			writeToMQ(context.Background(), "city_info_req", v)
+		case "add_worker":
+			v, _ := json.Marshal(
+				core.AddWorkerReq{
+					ChatID: update.Message.Chat.ID,
+					Count:  1,
 				},
 			)
-			if err != nil {
-				log.Panic(err)
-			}
+			writeToMQ(context.Background(), "add_worker_req", v)
+		case "add_solder":
+			v, _ := json.Marshal(
+				core.AddSolderReq{
+					ChatID: update.Message.Chat.ID,
+					Count:  1,
+				},
+			)
+			writeToMQ(context.Background(), "add_solder_req", v)
+
 		default:
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown command")
 			if _, err := gb.bot.Send(msg); err != nil {
 				log.Panic(err)
 			}
 		}
+	}
+}
+
+func writeToMQ(ctx context.Context, topic string, value []byte) {
+	app := core.GetApp()
+	uuidv4, _ := uuid.NewV4()
+	writer := kafka.Writer{
+		Addr:     kafka.TCP(app.Config.Kafka.Address),
+		Topic:    topic,
+		Balancer: &kafka.LeastBytes{},
+	}
+	err := writer.WriteMessages(
+		ctx,
+		kafka.Message{
+			Key:   uuidv4.Bytes(),
+			Value: value,
+		},
+	)
+	if err != nil {
+		log.Panic(err)
 	}
 }

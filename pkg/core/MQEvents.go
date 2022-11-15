@@ -8,6 +8,16 @@ type CityInfoReq struct {
 	ChatID int64
 }
 
+type AddWorkerReq struct {
+	ChatID int64
+	Count  int
+}
+
+type AddSolderReq struct {
+	ChatID int64
+	Count  int
+}
+
 type Response struct {
 	ChatID  int64
 	Payload interface{}
