@@ -6,14 +6,13 @@ import (
 	"HolyCrusade/pkg/core"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/mitchellh/mapstructure"
+	"github.com/segmentio/kafka-go"
 	"log"
 )
-
-type Consumer struct {
-	Handlers map[string]func([]byte) error
-}
 
 type Handler struct {
 	UserRepository    repository.UserRepository
@@ -21,33 +20,42 @@ type Handler struct {
 	BalanceRepository repository.BalanceRepository
 }
 
-func (c *Consumer) ListenMQ() error {
+func ListenMQ(topic string, handler func(interface{}) error) error {
 	app := core.GetApp()
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{app.Config.Kafka.Address},
+		Topic:   topic,
+		GroupID: "default_group",
+	})
 
 	for {
-		msg, err := app.MQ.Reader.ReadMessage(context.Background())
+		msg, err := reader.ReadMessage(context.Background())
 		if err != nil {
 			return err
 		}
 
-		if h, ok := c.Handlers[string(msg.Key)]; ok {
-			go func(hand func([]byte) error, value []byte) {
-				err := hand(value)
-				if err != nil {
-					log.Println("Failed to consume job")
-				}
-			}(h, msg.Value)
-
+		var mqe interface{}
+		err = json.Unmarshal(msg.Value, &mqe)
+		if err != nil {
+			log.Println("Can't unmarshal the bytes array")
+			return err
 		}
+
+		go func(hand func(interface{}) error, value interface{}) {
+			err := hand(value)
+			if err != nil {
+				log.Println("Failed to consume job")
+			}
+		}(handler, mqe)
 	}
 }
 
-func (h *Handler) NewUser(value []byte) error {
+func (h *Handler) NewUser(value interface{}) error {
 	app := core.GetApp()
 	var nu core.NewUser
-	err := json.Unmarshal(value, &nu)
+	err := mapstructure.Decode(value, &nu)
 	if err != nil {
-		log.Println("Can't unmarshal the byte array")
+		log.Println("Can't decode value into right struct")
 		return err
 	}
 
@@ -72,8 +80,13 @@ func (h *Handler) NewUser(value []byte) error {
 		}
 	}()
 
+	if exu, _ := h.UserRepository.GetByChatId(context.Background(), nu.ChatID); exu.ID != 0 {
+		log.Println("user already exists")
+		return errors.New("user already exists")
+	}
+
 	var u models.User
-	u.Token = nu.UserToken
+	u.ChatID = nu.ChatID
 	uID, err := h.UserRepository.Insert(context.Background(), u)
 	if err != nil {
 		log.Println(err)
@@ -96,6 +109,130 @@ func (h *Handler) NewUser(value []byte) error {
 	_, err = h.BalanceRepository.Insert(context.Background(), b)
 
 	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) CityInfo(value interface{}) error {
+	var ci core.CityInfoReq
+	err := mapstructure.Decode(value, &ci)
+	if err != nil {
+		log.Println("Can't decode value into right struct")
+		return err
+	}
+
+	user, err := h.UserRepository.GetByChatId(context.Background(), ci.ChatID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get user")
+		return err
+	}
+
+	city, err := h.CityRepository.GetByUserID(context.Background(), user.ID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get city")
+		return err
+	}
+
+	balance, err := h.BalanceRepository.GetByCityID(context.Background(), city.ID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get balance")
+		return err
+	}
+
+	err = CityInfoResponse(user.ChatID, city, balance)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) AddWorker(value interface{}) error {
+	var aw core.AddWorkerReq
+	err := mapstructure.Decode(value, &aw)
+	if err != nil {
+		log.Println("Can't decode value into right struct")
+		return err
+	}
+
+	user, err := h.UserRepository.GetByChatId(context.Background(), aw.ChatID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get user")
+		return err
+	}
+
+	city, err := h.CityRepository.GetByUserID(context.Background(), user.ID)
+	if err != nil || city.ID == 0 {
+		log.Println("Can't get city")
+		return err
+	}
+
+	balance, err := h.BalanceRepository.GetByCityID(context.Background(), city.ID)
+	if err != nil || balance.ID == 0 {
+		log.Println("Can't get balance")
+		return err
+	}
+
+	if balance.Population <= 0 {
+		err = errors.New("there are not enough free people in the city")
+		log.Println(err)
+		return err
+	}
+
+	balance.Workers += aw.Count
+	balance.Population -= aw.Count
+
+	err = h.BalanceRepository.Update(context.Background(), balance)
+	if err != nil {
+		log.Println("Can't update balance")
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) AddSolder(value interface{}) error {
+	var as core.AddWorkerReq
+	err := mapstructure.Decode(value, &as)
+	if err != nil {
+		log.Println("Can't decode value into right struct")
+		return err
+	}
+
+	user, err := h.UserRepository.GetByChatId(context.Background(), as.ChatID)
+	if err != nil || user.ID == 0 {
+		log.Println("Can't get user")
+		return err
+	}
+
+	city, err := h.CityRepository.GetByUserID(context.Background(), user.ID)
+	if err != nil || city.ID == 0 {
+		log.Println("Can't get city")
+		return err
+	}
+
+	balance, err := h.BalanceRepository.GetByCityID(context.Background(), city.ID)
+	if err != nil || balance.ID == 0 {
+		log.Println("Can't get balance")
+		return err
+	}
+
+	if balance.Population <= 0 {
+		err = errors.New("there are not enough free people in the city")
+		log.Println(err)
+		return err
+	}
+
+	balance.Solders += as.Count
+	balance.Population -= as.Count
+
+	err = h.BalanceRepository.Update(context.Background(), balance)
+	if err != nil {
+		log.Println("Can't update balance")
 		log.Println(err)
 		return err
 	}

@@ -44,6 +44,21 @@ func (br *BalanceRepository) Insert(ctx context.Context, b entity.Balance) (int,
 	return id, err
 }
 
+func (br *BalanceRepository) Update(ctx context.Context, b entity.Balance) error {
+	_, err := br.db.Exec(
+		ctx,
+		"UPDATE balance SET gold = $2, population = $3, workers = $4, solders = $5, heroes = $6 WHERE city_id = $1",
+		b.CityID,
+		b.Gold,
+		b.Population,
+		b.Workers,
+		b.Solders,
+		b.Heroes,
+	)
+
+	return err
+}
+
 func (br *BalanceRepository) Delete(ctx context.Context, ID int) error {
 	_, err := br.db.Exec(ctx,
 		"DELETE FROM balance WHERE id = $1", ID)

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"HolyCrusade/internal/butler/bot"
 	"HolyCrusade/pkg/core"
 )
 
 func main() {
-	var a core.Application
-	a.Init("config/butler.yml").
-		// WithKafka().
-		WithTelegramBot()
+	a := core.InitApp("config/butler.yml").WithTelegramBot()
+
+	b := bot.GameBot{}
+	b.SetBot(a.TgBot)
+
+	b.Start()
 }
